@@ -1,24 +1,7 @@
 // Load environment variables from .env (only matters locally; Railway sets them via dashboard)
 require("dotenv").config();
 
-const express = require("express");
-const twilio = require("twilio");
-
-const app = express();
-
-// Twilio sends POST bodies as URL-encoded form data, so we need this parser
-app.use(express.urlencoded({ extended: false }));
-
-// ── Twilio client (used to send SMS) ────────────────────────────────────────
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
-// ── Environment variables ────────────────────────────────────────────────────
-// Read directly from process.env inside each handler rather than destructuring
-// at startup — avoids capturing undefined if a var is missing or loaded late.
-
+// ── Validate env vars first, before anything else can throw ─────────────────
 const REQUIRED_ENV_VARS = [
   "TWILIO_ACCOUNT_SID",
   "TWILIO_AUTH_TOKEN",
@@ -33,6 +16,21 @@ if (missing.length > 0) {
   console.error("Missing required environment variables:", missing.join(", "));
   process.exit(1);
 }
+
+const express = require("express");
+const twilio = require("twilio");
+
+const app = express();
+
+// Twilio sends POST bodies as URL-encoded form data, so we need this parser
+app.use(express.urlencoded({ extended: false }));
+
+// ── Twilio client (used to send SMS) ────────────────────────────────────────
+// Constructed after validation so we know the credentials are present
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
 // ── /voice — Twilio calls this when someone calls your Twilio number ─────────
 //
