@@ -16,12 +16,23 @@ const twilioClient = twilio(
 );
 
 // ── Environment variables ────────────────────────────────────────────────────
-const {
-  MY_CELL_NUMBER,   // The real phone to forward calls to
-  TWILIO_PHONE_NUMBER, // The Twilio number (used as SMS sender)
-  SHOP_NAME,
-  BOOKING_LINK,
-} = process.env;
+// Read directly from process.env inside each handler rather than destructuring
+// at startup — avoids capturing undefined if a var is missing or loaded late.
+
+const REQUIRED_ENV_VARS = [
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_PHONE_NUMBER",
+  "MY_CELL_NUMBER",
+  "SHOP_NAME",
+  "BOOKING_LINK",
+];
+
+const missing = REQUIRED_ENV_VARS.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+  console.error("Missing required environment variables:", missing.join(", "));
+  process.exit(1);
+}
 
 // ── /voice — Twilio calls this when someone calls your Twilio number ─────────
 //
@@ -31,6 +42,8 @@ const {
 //  3. If the forwarded call isn't answered, Twilio hits /voice/status
 //     with the dial outcome, where we send the SMS
 app.post("/voice", (req, res) => {
+  const MY_CELL_NUMBER = process.env.MY_CELL_NUMBER;
+
   // req.body.From = the original caller's phone number (E.164 format)
   // We embed it in the action URL so the status callback knows who called
   const callerNumber = req.body.From;
@@ -70,6 +83,7 @@ app.post("/voice", (req, res) => {
 //   "failed"     → could not place the call   ← send SMS
 //   "canceled"   → caller hung up before dial ← do nothing
 app.post("/voice/status", async (req, res) => {
+  const { TWILIO_PHONE_NUMBER, SHOP_NAME, BOOKING_LINK } = process.env;
   const dialStatus = req.body.DialCallStatus;
   // Retrieve the original caller's number we embedded in the action URL
   const callerNumber = req.query.caller;
